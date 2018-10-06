@@ -1,0 +1,25 @@
+# virtualenv
+venv/
+
+# idea
+.idea
+.Python
+
+# data
+data/
+
+# vscode
+*.vscode
+
+# Mac
+*.DS_Store
+
+# cache
+*.pyc
+*__pycache__*
+
+# word
+*.docx
+
+# checkpoints
+*.ipynb_checkpoints/
