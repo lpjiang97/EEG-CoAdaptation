@@ -1,0 +1,11 @@
+1) The start of different tasks (i.e., walking, typing, and talking) were marked with event values and comments in the .dsi/.csv/.edf files containing EEG data.
+
+Event # | Task
+------------------
+5 	| Typing
+6 	| Talking
+7 	| Walking
+
+2) Ignore the event markers for eyes open/closed. This was just Nile testing whether the shortcut for setting markers was working.
+
+3) The sampling frequencies for the EEG and the accelerometer data are different! fs = 300 Hz for EEG and fs = 30 Hz for the accelerometer data.
