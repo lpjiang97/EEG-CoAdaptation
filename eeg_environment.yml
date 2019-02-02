@@ -1,0 +1,5 @@
+name: eeg
+channels:
+  - defaults
+prefix: C:\Users\nile\Anaconda3\envs\eeg\envs\eeg
+
