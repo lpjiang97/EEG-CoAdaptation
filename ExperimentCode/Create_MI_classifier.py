@@ -1,5 +1,6 @@
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
+from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC, LinearSVC
@@ -259,19 +260,21 @@ def TrainDecoder(X, y):
     X_not_scaled = X
     X = StandardScaler().fit_transform(X)
 
-    # Parameter tuning for SVM
-    Cs = [0.001, 0.01, 0.1, 1, 1.5, 2, 5]
-    degrees = [1, 2, 3, 4, 5]
-    hyper_params = {"C":Cs, "degree":degrees}
-    grid = GridSearchCV(SVC(kernel='rbf', gamma='auto'), param_grid=hyper_params, cv=KFold(n_splits=50), verbose=True)
-        
-    # Fit
-    grid.fit(X, y)
-    grid.best_estimator_
+    # Resample to account for imbalance
+    method = SMOTE(kind='regular')
+    X_balanced, y_balanced = method.fit_sample(X, y)
 
-    # Score
+    # Determine model parameters
+    activations = ['relu','tanh']
+    alphas = np.logspace(-6, 3, 10)
+    solvers = ['lbfgs','sgd']
+    hyper_params = {"activation":activations, "alpha":alphas, "solver":solvers}
+    grid = GridSearchCV(MLPClassifier(learning_rate='constant', random_state=1), param_grid=hyper_params, cv=KFold(n_splits=5), verbose=True)
+    grid.fit(X_balanced, y_balanced)
+
+    # Fit the model
     clf = grid.best_estimator_
-    clf.fit(X, y)
+    clf.fit(X_balanced,y_balanced)
 
     """
     # Determine model parameters

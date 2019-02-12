@@ -1,5 +1,6 @@
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
+from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
@@ -478,8 +479,12 @@ def RetrainDecoder(clf, CS, threshold, X_old, y_old, X_new, y_new, adaptationTyp
     X_not_scaled = X
     X = StandardScaler().fit_transform(X)
 
+    # Resample to account for imbalance introduced by CS thresholding
+    method = SMOTE(kind='regular')
+    X_balanced, y_balanced = method.fit_sample(X, y)
+
     # Fit the model
-    clf.fit(X,y)
+    clf.fit(X_balanced,y_balanced)
     
     return clf, X, X_not_scaled, y
 
