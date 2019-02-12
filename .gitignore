@@ -13,6 +13,7 @@ ExperimentCode/Models/
 Initial_inspection/data/
 *.sav
 *.npz
+*.png
 
 # vscode
 *.vscode
