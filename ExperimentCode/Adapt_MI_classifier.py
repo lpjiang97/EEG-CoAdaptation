@@ -605,6 +605,14 @@ if __name__ == "__main__":
     print(confusion_matrix(TL, clf_error.predict(features)))
     print('----------------')
 
+    print('Running BCI data through old model')
+    X_tmp = (X_new - np.mean(X_loaded_MI,0))/np.std(X_loaded_MI,0)
+    print('Percent of correctly scored examples: ' + str(MI_model.score(X_tmp, y_new)*100) + '%')
+    print('----------------')
+    print('Confusion Matrix for MI Classification')
+    print(confusion_matrix(y_new, MI_model.predict(X_tmp)))
+    print('----------------')
+
     # Retrain
     adaptationType = 'CS' # either 'CS' for confidence score, or 'TL' for true label
     threshold = 0.7
