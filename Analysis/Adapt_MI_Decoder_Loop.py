@@ -209,7 +209,7 @@ def EpochBCIData(EEGdata, fs, move_starts, rest_starts, rest_ends):
         epoch.columns = EEGdata.columns[0:8]
 
         # Store epoch
-        tmp = (epoch - np.mean(baseline))/np.std(baseline)
+        tmp = (epoch - np.mean(baseline,0))/np.std(baseline,0)
         tmp = pd.DataFrame(tmp)
         tmp.columns = EEGdata.columns[0:8]
 
@@ -259,10 +259,10 @@ def ExtractFeaturesBCI(epochs, num_of_movements, channelsToUse, ds_factor):
 
         for movement in range(0, num_of_movements):
             f, Pxx_den = signal.welch(signal.decimate(epochs[movement][chanOfInt],ds_f), fs/ds_f, scaling='spectrum')
-            alpha_idx = np.where(np.logical_and(np.round(f) > 8, np.round(f) <= 12))
+            alpha_idx = np.where(np.logical_and(np.round(f) >= 8, np.round(f) <= 12))
             tmp_alpha.append(np.sum(Pxx_den[alpha_idx]))
 
-            beta_idx = np.where(np.logical_and(np.round(f) > 13, np.round(f) <= 30))
+            beta_idx = np.where(np.logical_and(np.round(f) >= 13, np.round(f) <= 30))
             tmp_beta.append(np.sum(Pxx_den[beta_idx]))
 
         alpha_power[chanOfInt] = tmp_alpha
@@ -291,7 +291,7 @@ def EpochErrorData(EEGdata, fs, EEGdevice, t_trial_start):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
 
         # Store epoch
-        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline))/np.std(baseline)
+        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline,0))/np.std(baseline,0)
         epochs.append(tmp)
     
     return epochs
@@ -386,7 +386,7 @@ def ExtractErrorFeatures(epochs, num_of_trials, error_template, correct_template
     
     return features
 
-def ConfidenceScoreExamples(X, y, EEGdata, epochs_norm, EEGdevice, model_type, fs, num_of_movements, move_starts, trial_type):
+def ConfidenceScoreExamples(X, y, EEGdata, epochs_norm, EEGdevice, session_number, model_type, fs, num_of_movements, move_starts, trial_type):
     """
     This is the function that does the confidence scoring based on error detection and attention
     """
@@ -446,11 +446,11 @@ def ConfidenceScoreExamples(X, y, EEGdata, epochs_norm, EEGdevice, model_type, f
     Also return true label stuff
     """
     # Also return true label scores
-    # Load the error detection model and see what featureType it used (frequency or template projections)
+    # Load the MI model
     if model_type in ['original','Original','orig','ORIGINAL']:
-        models = glob.glob('Models/' + subjID + '/Session1/' + subjID + '_MI_classifier_*')
+        models = glob.glob('Models/' + subjID + '/Session' + str(session_number) + '/' + subjID + '_MI_classifier_*')
     else:
-        models = glob.glob('Models/' + subjID + '/' + model_type + '/Session1/' + subjID + '_MI_classifier_*')
+        models = glob.glob('Models/' + subjID + '/' + model_type + '/Session' + str(session_number) + '/' + subjID + '_MI_classifier_*')
     model_file = models[-1] # load the most recent model
     clf_MI = pickle.load(open(model_file, 'rb'))
 
@@ -557,7 +557,7 @@ def GetRestEpochsBCI(EEGdata, rest_starts, rest_ends):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
 
         # Store epoch
-        tmp = (rest_epoch - np.mean(baseline))/np.std(baseline)
+        tmp = (rest_epoch - np.mean(baseline,0))/np.std(baseline,0)
         epochs.append(rest_epoch)
         epochs_norm.append(tmp)
 
@@ -693,7 +693,7 @@ if __name__ == "__main__":
 
         # Get signal features
         alpha_power, beta_power = ExtractFeaturesBCI(epochs_norm, num_of_movements, ['C3','C4'], 1)
-        motor_features = [alpha_power['C3'], alpha_power['C4'], beta_power['C3'], beta_power['C4']]
+        motor_features = [alpha_power['C3'], beta_power['C3'], alpha_power['C4'], beta_power['C4']]
         motor_features = np.transpose(motor_features)
 
         # Load latest model and its associated data
@@ -707,7 +707,7 @@ if __name__ == "__main__":
         X_new = motor_features
         y_new = trial_type
 
-        CS, TL, preds_MI, preds_error, preds_error_proba, epochs, features, clf_error, beta_threshold, attention_beta = ConfidenceScoreExamples(X_new, y_new, EEGdata, epochs_norm, EEGdevice, model_type, fs, num_of_movements, move_starts, trial_type)
+        CS, TL, preds_MI, preds_error, preds_error_proba, epochs, features, clf_error, beta_threshold, attention_beta = ConfidenceScoreExamples(X_new, y_new, EEGdata, epochs_norm, EEGdevice, session_number, model_type, fs, num_of_movements, move_starts, trial_type)
 
         # clf_error: our ErrP classifier
         # TL: true labels for the performance monitoring epochs in this BCI data
@@ -748,7 +748,7 @@ if __name__ == "__main__":
             X_new = motor_features
             y_new = trial_type
 
-            CS, TL, preds_MI, preds_error, preds_error_proba, epochs, features, clf_error, beta_threshold, attention_beta = ConfidenceScoreExamples(X_new, y_new, EEGdata, epochs_norm, EEGdevice, model_type, fs, num_of_movements, move_starts, trial_type)
+            CS, TL, preds_MI, preds_error, preds_error_proba, epochs, features, clf_error, beta_threshold, attention_beta = ConfidenceScoreExamples(X_new, y_new, EEGdata, epochs_norm, EEGdevice, session_number, model_type, fs, num_of_movements, move_starts, trial_type)
 
         threshold = 0.7
         clf, X, X_not_scaled, y = RetrainDecoder(MI_model, np.asarray(TL), threshold, X_loaded_MI, y_loaded_MI, motor_features, trial_type, adaptationType)

@@ -163,7 +163,7 @@ def EpochData(EEGdata, t_trial_start):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
 
         # Store epoch
-        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline))/np.std(baseline)
+        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline,0))/np.std(baseline,0)
         epochs_norm.append(tmp)
     
     return epochs_norm
