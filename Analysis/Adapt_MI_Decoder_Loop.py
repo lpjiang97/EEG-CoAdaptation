@@ -786,7 +786,7 @@ if __name__ == "__main__":
         plt.ylabel('Spectral Density')
         plt.title(subjID + ', Motor Imagery Epochs, Pz, Run ' + str(runOfInt))
         lgd = plt.legend(['Beta Values Below Threshold','Beta Values Above Threshold','Threshold'], bbox_to_anchor=(1.04,1), loc='upper left')
-        plt.show()
+        #plt.show()
 
         if model_type in ['original','Original','orig','ORIGINAL']:
             fig.savefig('Figures/' + subjID + '/' + subjID + '_Pz_beta_Session' + str(session_number) + '_R' + str(runOfInt) + '.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
@@ -806,7 +806,7 @@ if __name__ == "__main__":
         plt.ylabel('Pz Beta Value')
         plt.title(subjID + ', Attention for Erroneous and Non-erroneous movement, Run ' + str(runOfInt))
         lgd = plt.legend(['Error Epoch (true label)','Non-error Epoch (true label)'], bbox_to_anchor=(1.04,1), loc='upper left')
-        plt.show()
+        #plt.show()
 
         if model_type in ['original','Original','orig','ORIGINAL']:
             fig.savefig('Figures/' + subjID + '/' + subjID + '_Pz_beta_color_Session' + str(session_number) + '_R' + str(runOfInt) + '.png', bbox_extra_artists=(lgd,), bbox_inches='tight')
@@ -818,7 +818,7 @@ if __name__ == "__main__":
         plt.xlabel('Examples')
         plt.ylabel('Confidence Score')
         plt.title(subjID + ', Confidence Scores, Run ' + str(runOfInt))
-        plt.show()
+        #plt.show()
 
         if model_type in ['original','Original','orig','ORIGINAL']:
             fig.savefig('Figures/' + subjID + '/' + subjID + '_Confidence_Scores_Session' + str(session_number) + '_R' + str(runOfInt) + '.png')
