@@ -44,6 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('-g','--groupNumber', help='Subject group number',required=False)
     parser.add_argument('-n','--sessionNumber', help='Session number (enter 0 if you want to run all sessions)',required=False)
     parser.add_argument('-e','--EEGdevice',help='EEG Device Type (7=DSI, 8=Enobio)', required=False)
+    parser.add_argument('-b','--useBehavioral',help='Use behavioral data? (yes for collection 2 subjects)',required=False)
     parser.add_argument('-m','--modelType',help='Model type (original if from experiments)', required=False)
     parser.add_argument('-i','--isSVM',help='Is the model an SVM yes or no', required=False)
     args = parser.parse_args()
@@ -75,6 +76,15 @@ if __name__ == "__main__":
         print('Enobio selected')
     else:
         raise ValueError('Invalid EEG device number')
+
+    if arguments['useBehavioral'] is None:
+        useBehavioral = input('Use behavioral data, yes (collection 2 subjects) or no: ')
+    else:
+        useBehavioral = arguments['useBehavioral']
+    if useBehavioral in ['yes','y','Y','Yes']:
+            useBehavioral = True
+    elif useBehavioral in ['no','n','N','No']:
+        useBehavioral = False
     
     if arguments['modelType'] is None:
         print('If you are using experimental data, model name = original')
@@ -934,6 +944,36 @@ if __name__ == "__main__":
             y_loaded = MI_data['y']
             
             return clf, X_loaded, y_loaded
+        
+        def GetBehavioralTL(runOfInt, behavioralData_all, hasBaseline_all):
+            # When the target is to the left
+            trialL = np.where(behavioralData_all[runOfInt]['target_x'] < 1000)
+            movementL = np.where(behavioralData_all[runOfInt]['direction_moved'] == 'left')
+
+            # When target was to the right
+            trialR = np.where(behavioralData_all[runOfInt]['target_x'] > 1000)
+            movementR = np.where(behavioralData_all[runOfInt]['direction_moved'] == 'right')
+
+            # Create a single list that includes which movement is which (L = 0, R = 1)
+            trial_type = np.zeros([1,len(behavioralData_all[runOfInt]['score'])])
+            trial_type[0][trialL] = 0
+            trial_type[0][trialR] = 1
+            trial_type = np.round(trial_type[0])
+
+            direction_moved = np.zeros([1,len(behavioralData_all[runOfInt]['score'])])
+            direction_moved[0][movementL] = 0
+            direction_moved[0][movementR] = 1
+            direction_moved = np.round(direction_moved[0])
+
+            # Remove trials if no baseline
+            for movement in range(0,len(hasBaseline_all[runOfInt])):
+                if hasBaseline_all[runOfInt][movement] is False:
+                    trial_type = np.delete(trial_type, movement)
+                    direction_moved = np.delete(direction_moved, movement)
+            
+            actual = direction_moved
+            TL = trial_type
+            return actual, TL
 
 
         # ## Code to Run
@@ -955,6 +995,8 @@ if __name__ == "__main__":
         clf_orig_all = dict()
         clf_sim_all = dict()
         clf_sim_TL_all = dict() # for simulated true-label adaptation
+        behavioralData_all = dict()
+        hasBaseline_all = dict()
 
         for runOfInt in range(1, num_of_runs+1):
             # Find BCI file names
@@ -965,9 +1007,11 @@ if __name__ == "__main__":
 
             # Load behavioral data
             behavioralData = LoadBehavioralDataBCI(filename_behavioral)
+            behavioralData_all[runOfInt] = behavioralData
 
             # Sync up trigger pulses
             num_of_trials, num_of_movements, move_starts, hasBaseline, rest_starts, rest_ends = SyncTriggerPulsesBCI(EEGdata, EEGdevice, fs, behavioralData)
+            hasBaseline_all[runOfInt] = hasBaseline
 
             # Epoch the data
             epochs, epochs_norm = EpochBCIData(EEGdata, fs, move_starts, rest_starts, rest_ends)
@@ -1031,12 +1075,22 @@ if __name__ == "__main__":
 
         # In[31]:
 
+        if useBehavioral is True:
+            actual_scores = list()
+            for runOfInt in range(1,5+1):
+                actual, TL = GetBehavioralTL(runOfInt, behavioralData_all, hasBaseline_all)
+                correct_all = len(np.where(TL==actual)[0])/len(TL)*100
+                actual_scores.append(correct_all)
+
 
         fig = plt.figure()
         if subject_group == 1:
-            
-            plt.plot(orig_scores, color='green', marker='o', markersize=7,
+            if useBehavioral is True:
+                plt.plot(actual_scores, color='green', marker='o', markersize=7,
                     linestyle='dashed', linewidth=2)
+            else:
+                plt.plot(orig_scores, color='green', marker='o', markersize=7,
+                    linestyle='dashed', linewidth=2) 
             plt.plot(sim_scores, color='yellowgreen', marker='^', markersize=7,
                     linestyle='dashed', linewidth=2)
             plt.plot(sim_TL_scores, color='orange', marker='P', markersize=7,
@@ -1053,7 +1107,11 @@ if __name__ == "__main__":
         elif subject_group == 2:
             plt.plot(sim_scores, color='green', marker='o', markersize=7,
                     linestyle='dashed', linewidth=2)
-            plt.plot(orig_scores, color='yellowgreen', marker='^', markersize=7,
+            if useBehavioral is True:
+                plt.plot(actual_scores, color='yellowgreen', marker='^', markersize=7,
+                    linestyle='dashed', linewidth=2)
+            else:
+                plt.plot(orig_scores, color='yellowgreen', marker='^', markersize=7,
                     linestyle='dashed', linewidth=2)
             plt.plot(sim_TL_scores, color='orange', marker='P', markersize=7,
                     linestyle='dashed', linewidth=2)
@@ -1086,8 +1144,11 @@ if __name__ == "__main__":
                 # Calculate
                 if subject_group == 1:
                     if adaptation_type == 'No Adaptation':
-                        actual = clf_orig_all[runOfInt].predict(X_orig_all[runOfInt])
-                        TL = y_orig_all[runOfInt] # true labels
+                        if useBehavioral is True:
+                            actual, TL = GetBehavioralTL(runOfInt, behavioralData_all, hasBaseline_all)
+                        else:
+                            actual = clf_orig_all[runOfInt].predict(X_orig_all[runOfInt])
+                            TL = y_orig_all[runOfInt] # true labels
                     elif adaptation_type == 'Adaptation (CS)':
                         actual = clf_sim_all[runOfInt].predict(X_sim_all[runOfInt])
                         TL = y_sim_all[runOfInt] # true labels
@@ -1099,8 +1160,11 @@ if __name__ == "__main__":
                         actual = clf_sim_all[runOfInt].predict(X_sim_all[runOfInt])
                         TL = y_sim_all[runOfInt] # true labels
                     elif adaptation_type == 'Adaptation (CS)':
-                        actual = clf_orig_all[runOfInt].predict(X_orig_all[runOfInt])
-                        TL = y_orig_all[runOfInt] # true labels
+                        if useBehavioral is True:
+                            actual, TL = GetBehavioralTL(runOfInt, behavioralData_all, hasBaseline_all)
+                        else:
+                            actual = clf_orig_all[runOfInt].predict(X_orig_all[runOfInt])
+                            TL = y_orig_all[runOfInt] # true labels
                     elif adaptation_type == 'Simulated Adaptation (TL)':
                         actual = clf_sim_TL_all[runOfInt].predict(X_sim_TL_all[runOfInt])
                         TL = y_sim_TL_all[runOfInt] # true labels
