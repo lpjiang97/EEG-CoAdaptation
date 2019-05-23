@@ -243,81 +243,83 @@ class MyGame(arcade.Window):
     def on_key_press(self, key, modifiers):
 
         if self.inISI is False:
-            """ Called whenever a key is pressed. """
-            move_time = clock.getTime()
-            self.trialPressCount += 1
+            """ Called whenever a left or right key is pressed. """
+            if key == arcade.key.LEFT or key == arcade.key.RIGHT:
+                move_time = clock.getTime()
+                self.trialPressCount += 1
 
-            # Move the player
-            if self.reverseDirection is False:
-                # Everything functions normally
-                if key == arcade.key.LEFT:
-                    self.left_pressed = True
-                    pressed_key = 'left'
-                elif key == arcade.key.RIGHT:
-                    self.right_pressed = True
-                    pressed_key = 'right'
-                direction_moved = pressed_key
-            else:
-                if self.EEGdevice == 7:
-                    # Audio beep to send pulse to sync box
-                    play_sound('C') 
+                # Move the player
+                if self.reverseDirection is False:
+                    # Everything functions normally
+                    if key == arcade.key.LEFT:
+                        self.left_pressed = True
+                        pressed_key = 'left'
+                    elif key == arcade.key.RIGHT:
+                        self.right_pressed = True
+                        pressed_key = 'right'
+                    direction_moved = pressed_key
                 else:
-                    # Send pulse through LSL
-                    self.outlet.push_sample([moveCount])
+                    if self.EEGdevice == 7:
+                        # Audio beep to send pulse to sync box
+                        play_sound('C') 
+                    else:
+                        # Send pulse through LSL
+                        self.outlet.push_sample([moveCount])
 
-                # Input is reversed
-                if key == arcade.key.LEFT:
-                    self.right_pressed = True
-                    pressed_key = 'left'
-                    direction_moved = 'right'
-                elif key == arcade.key.RIGHT:
-                    self.left_pressed = True
-                    pressed_key = 'right'
-                    direction_moved = 'left'
+                    # Input is reversed
+                    if key == arcade.key.LEFT:
+                        self.right_pressed = True
+                        pressed_key = 'left'
+                        direction_moved = 'right'
+                    elif key == arcade.key.RIGHT:
+                        self.left_pressed = True
+                        pressed_key = 'right'
+                        direction_moved = 'left'
 
-            # Add to behavioral data dataframe
-            if self.trialPressCount == self.pressCountToMove:
-                taskData.loc[moveCount] = pd.Series([move_time, \
-                    self.player_sprite.center_x, self.player_sprite.center_y, \
-                    self.target_sprite.center_x, self.target_sprite.center_y, \
-                    pressed_key, direction_moved, self.reverseDirection, self.score], \
-                    index=self.taskData_col_names)
-                increment()
+                # Add to behavioral data dataframe
+                if self.trialPressCount == self.pressCountToMove:
+                    taskData.loc[moveCount] = pd.Series([move_time, \
+                        self.player_sprite.center_x, self.player_sprite.center_y, \
+                        self.target_sprite.center_x, self.target_sprite.center_y, \
+                        pressed_key, direction_moved, self.reverseDirection, self.score], \
+                        index=self.taskData_col_names)
+                    increment()
     
     def on_key_release(self, key, modifiers):
         if self.inISI is False:
-            """ Called when the user releases a key. """
-            if self.reverseDirection is False:
-                # Everything functions normally
-                if key == arcade.key.LEFT:
-                    self.left_pressed = False
-                    if self.trialPressCount == self.pressCountToMove:
-                        self.can_move = True
-                elif key == arcade.key.RIGHT:
-                    self.right_pressed = False
-                    if self.trialPressCount == self.pressCountToMove:
-                        self.can_move = True
-            else:
-                # Input is reversed
-                if key == arcade.key.LEFT:
-                    self.right_pressed = False
-                    if self.trialPressCount == self.pressCountToMove:
-                        self.can_move = True
-                elif key == arcade.key.RIGHT:
-                    self.left_pressed = False
-                    if self.trialPressCount == self.pressCountToMove:
-                        self.can_move = True
-            
-            # Update random variable to determine forced error
-            if self.can_move is True:
-                if random() > ERROR_RATE:
-                    self.reverseDirection = False
+            """ Called when the user releases left or right key. """
+            if key == arcade.key.LEFT or key == arcade.key.RIGHT:
+                if self.reverseDirection is False:
+                    # Everything functions normally
+                    if key == arcade.key.LEFT:
+                        self.left_pressed = False
+                        if self.trialPressCount == self.pressCountToMove:
+                            self.can_move = True
+                    elif key == arcade.key.RIGHT:
+                        self.right_pressed = False
+                        if self.trialPressCount == self.pressCountToMove:
+                            self.can_move = True
                 else:
-                    self.reverseDirection = True
-            
-            # Only move the cursor every 3 presses (self.pressCountToMove)
-            if self.trialPressCount == self.pressCountToMove:
-                self.trialPressCount = 0
+                    # Input is reversed
+                    if key == arcade.key.LEFT:
+                        self.right_pressed = False
+                        if self.trialPressCount == self.pressCountToMove:
+                            self.can_move = True
+                    elif key == arcade.key.RIGHT:
+                        self.left_pressed = False
+                        if self.trialPressCount == self.pressCountToMove:
+                            self.can_move = True
+                
+                # Update random variable to determine forced error
+                if self.can_move is True:
+                    if random() > ERROR_RATE:
+                        self.reverseDirection = False
+                    else:
+                        self.reverseDirection = True
+                
+                # Only move the cursor every 3 presses (self.pressCountToMove)
+                if self.trialPressCount == self.pressCountToMove:
+                    self.trialPressCount = 0
     
     def display_rest(self):
         self.inISI = True

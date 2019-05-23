@@ -158,7 +158,7 @@ def EpochData(EEGdata, t_trial_start, t_trial_end):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
         
         # Store epoch
-        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline))/np.std(baseline)
+        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline,0))/np.std(baseline,0)
         epochs_norm.append(tmp)
         epochs.append(EEGdata.loc[t_start:t_end][channels])
     
@@ -237,10 +237,10 @@ def ExtractFeatures(epochs, num_of_trials, channelsToUse, ds_factor):
 
         for trial in range(0, num_of_trials):
             f, Pxx_den = signal.welch(signal.decimate(epochs[trial][chanOfInt],ds_f), fs/ds_f, scaling='spectrum')
-            alpha_idx = np.where(np.logical_and(np.round(f) > 8, np.round(f) <= 12))
+            alpha_idx = np.where(np.logical_and(np.round(f) >= 8, np.round(f) <= 12))
             tmp_alpha.append(np.sum(Pxx_den[alpha_idx]))
 
-            beta_idx = np.where(np.logical_and(np.round(f) > 13, np.round(f) <= 30))
+            beta_idx = np.where(np.logical_and(np.round(f) >= 13, np.round(f) <= 30))
             tmp_beta.append(np.sum(Pxx_den[beta_idx]))
 
         alpha_power[chanOfInt] = tmp_alpha
@@ -369,7 +369,7 @@ if __name__ == "__main__":
 
     # Get signal features
     alpha_power, beta_power = ExtractFeatures(epochs_cut, num_of_trials_cut, ['C3','C4'], 1)
-    motor_features = [alpha_power['C3'], alpha_power['C4'], beta_power['C3'], beta_power['C4']]
+    motor_features = [alpha_power['C3'], beta_power['C3'], alpha_power['C4'], beta_power['C4']]
     motor_features = np.transpose(motor_features)
 
     # Train model

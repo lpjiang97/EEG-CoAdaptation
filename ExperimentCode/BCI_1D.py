@@ -293,10 +293,10 @@ class MyGame(arcade.Window):
             #print('baseline size: ' + str(np.shape(self.baseline)))
             #print('baseline: ' + str(self.baseline))
             #print('data: ' + str(data))
-            tmp = (data - np.mean(self.baseline))/(np.std(self.baseline))
+            tmp = (data - np.mean(self.baseline,0))/(np.std(self.baseline,0))
         else:
             #print('data: ' + str(data))
-            tmp = (data - np.mean(data))/(np.std(data))
+            tmp = (data - np.mean(data,0))/(np.std(data,0))
         #print('tmp: ' + str(tmp))
         #print('tmp[:,chanOfInt] shape: ' + str(np.shape(tmp[:,0])))
 

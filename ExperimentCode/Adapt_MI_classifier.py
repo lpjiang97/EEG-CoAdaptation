@@ -147,7 +147,7 @@ def SyncTriggerPulsesBCI(EEGdata, EEGdevice, fs, behavioralData):
     
     return num_of_trials, num_of_movements, move_starts, hasBaseline, rest_starts, rest_ends
 
-def EpochBCIData(EEGdata, move_starts, rest_starts, rest_ends):
+def EpochBCIData(EEGdata, fs, move_starts, rest_starts, rest_ends):
     """
     This function epochs the data
     """
@@ -162,7 +162,7 @@ def EpochBCIData(EEGdata, move_starts, rest_starts, rest_ends):
 
     for movement in range(0,len(move_starts)):
         # Data for this movement
-        t_start = move_starts[movement] - np.round(1.00*fs)
+        t_start = move_starts[movement] - np.round(2.00*fs)
         t_end = move_starts[movement] - np.round(0.250*fs)
 
         # Baseline
@@ -170,12 +170,24 @@ def EpochBCIData(EEGdata, move_starts, rest_starts, rest_ends):
         tb_start = rest_starts[restOfInt]
         tb_end = rest_ends[restOfInt]
 
-        baseline = EEGdata.loc[tb_start:tb_end][channels]
+        # Note, baseline is filtered before it is used in the live script
+        baseline_pre_filt = np.asarray(EEGdata.loc[tb_start:tb_end][channels]) * 1.0
+        baseline_filt = filter_data(baseline_pre_filt.T, sfreq=fs, l_freq=7, h_freq=31, verbose='ERROR')
+        baseline = baseline_filt.T
+
+        # Filter per epoch, like you would in real-time
+        pre_filt = np.asarray(EEGdata.loc[t_start:t_end][channels]) * 1.0
+        filtered = filter_data(pre_filt.T, sfreq=fs, l_freq=7, h_freq=31, verbose='ERROR')
+        epoch = pd.DataFrame(filtered.T)
+        epoch.columns = EEGdata.columns[0:8]
 
         # Store epoch
-        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline))/np.std(baseline)
+        tmp = (epoch - np.mean(baseline,0))/np.std(baseline,0)
+        tmp = pd.DataFrame(tmp)
+        tmp.columns = EEGdata.columns[0:8]
+
         epochs_norm.append(tmp)
-        epochs.append(EEGdata.loc[t_start:t_end][channels])
+        epochs.append(epoch)
 
     return epochs, epochs_norm
 
@@ -184,13 +196,13 @@ def OrganizeTrials(behavioralData, hasBaseline):
     Organizes trials
     """
     
-    # When target was to the left
-    trialL = np.where(behavioralData['target_x'] < behavioralData['player_x'])
+    # When the cursor moves left
+    trialL = np.where(behavioralData['target_x'] < 1000)
     
     # When target was to the right
-    trialR = np.where(behavioralData['target_x'] > behavioralData['player_x'])
+    trialR = np.where(behavioralData['target_x'] > 1000)
     
-    # Create a single list that includes which trial is which (L = 0, R = 1)
+    # Create a single list that includes which movement is which (L = 0, R = 1)
     trial_type = np.zeros([1,len(behavioralData['score'])])
     trial_type[0][trialL] = 0
     trial_type[0][trialR] = 1
@@ -220,10 +232,10 @@ def ExtractFeaturesBCI(epochs, num_of_movements, channelsToUse, ds_factor):
 
         for movement in range(0, num_of_movements):
             f, Pxx_den = signal.welch(signal.decimate(epochs[movement][chanOfInt],ds_f), fs/ds_f, scaling='spectrum')
-            alpha_idx = np.where(np.logical_and(np.round(f) > 8, np.round(f) <= 12))
+            alpha_idx = np.where(np.logical_and(np.round(f) >= 8, np.round(f) <= 12))
             tmp_alpha.append(np.sum(Pxx_den[alpha_idx]))
 
-            beta_idx = np.where(np.logical_and(np.round(f) > 13, np.round(f) <= 30))
+            beta_idx = np.where(np.logical_and(np.round(f) >= 13, np.round(f) <= 30))
             tmp_beta.append(np.sum(Pxx_den[beta_idx]))
 
         alpha_power[chanOfInt] = tmp_alpha
@@ -252,7 +264,7 @@ def EpochErrorData(EEGdata, fs, EEGdevice, t_trial_start):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
 
         # Store epoch
-        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline))/np.std(baseline)
+        tmp = (EEGdata.loc[t_start:t_end][channels] - np.mean(baseline,0))/np.std(baseline,0)
         epochs.append(tmp)
     
     return epochs
@@ -371,7 +383,7 @@ def GetRestEpochsBCI(EEGdata, rest_starts, rest_ends):
         baseline = EEGdata.loc[tb_start:tb_end][channels]
 
         # Store epoch
-        tmp = (rest_epoch - np.mean(baseline))/np.std(baseline)
+        tmp = (rest_epoch - np.mean(baseline,0))/np.std(baseline,0)
         epochs.append(rest_epoch)
         epochs_norm.append(tmp)
 
@@ -544,6 +556,7 @@ if __name__ == "__main__":
     # Sync up trigger pulses
     num_of_trials, num_of_movements, move_starts, hasBaseline, rest_starts, rest_ends = SyncTriggerPulsesBCI(EEGdata, EEGdevice, fs, behavioralData)
 
+    """
     # Clean the data
     EEGdata_orig = EEGdata.copy()
     lf = 1
@@ -565,16 +578,17 @@ if __name__ == "__main__":
 
     # Make a copy of the original data just in case
     EEGdata[channels] = raw.get_data().T
+    """
 
     # Epoch the BCI data for motor imagery (MI) times
-    epochs, epochs_norm = EpochBCIData(EEGdata, move_starts, rest_starts, rest_ends)
+    epochs, epochs_norm = EpochBCIData(EEGdata, fs, move_starts, rest_starts, rest_ends)
 
     # Organize trial types
     trial_type = OrganizeTrials(behavioralData, hasBaseline)
 
     # Get signal features for MI classification
     alpha_power, beta_power = ExtractFeaturesBCI(epochs_norm, num_of_movements, ['C3','C4'], 1)
-    motor_features = [alpha_power['C3'], alpha_power['C4'], beta_power['C3'], beta_power['C4']]
+    motor_features = [alpha_power['C3'], beta_power['C3'], alpha_power['C4'], beta_power['C4']]
     motor_features = np.transpose(motor_features)
 
     # Load latest model and its associated data
